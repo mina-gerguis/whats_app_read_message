@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WhatsApp Chat Viewer | عارض محادثات واتساب</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        wa: {
+                            green: '#25D366',
+                            teal: '#128C7E',
+                            darkTeal: '#075E54',
+                            lightGreen: '#d9fdd3',
+                            darkGreen: '#005c4b',
+                            chatBgLight: '#efeae2',
+                            chatBgDark: '#0b141a',
+                            bubbleLight: '#ffffff',
+                            bubbleDark: '#202c33',
+                            headerLight: '#f0f2f5',
+                            headerDark: '#202c33',
+                            textDark: '#111b21',
+                            textLight: '#e9edef',
+                            mutedDark: '#667781',
+                            mutedLight: '#8696a0',
+                            systemLight: '#ffeecd',
+                            systemDark: '#182229'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;500;600;700&family=Cairo:wght@400;600;700&display=swap');
+
+        body {
+            font-family: 'Segoe UI', 'Cairo', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+            user-select: text;
+        }
+
+        /* WhatsApp Doodle Wallpaper */
+        .chat-wallpaper-light {
+            background-color: #efeae2;
+            background-image: 
+                radial-gradient(#d4ccc0 1px, transparent 1px),
+                radial-gradient(#d4ccc0 1px, #efeae2 1px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+        }
+
+        .chat-wallpaper-dark {
+            background-color: #0b141a;
+            background-image: 
+                radial-gradient(#1f2c34 1px, transparent 1px),
+                radial-gradient(#1f2c34 1px, #0b141a 1px);
+            background-size: 32px 32px;
+            background-position: 0 0, 16px 16px;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(134, 150, 160, 0.4);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(134, 150, 160, 0.7);
+        }
+
+        /* Message tail styling */
+        .bubble-tail-right::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            right: -8px;
+            width: 10px;
+            height: 12px;
+            background: inherit;
+            clip-path: polygon(0 0, 100% 0, 0 100%);
+        }
+
+        .bubble-tail-left::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: -8px;
+            width: 10px;
+            height: 12px;
+            background: inherit;
+            clip-path: polygon(0 0, 100% 0, 100% 100%);
+        }
+
+        .highlight-text {
+            background-color: #ffeb3b;
+            color: #000;
+            padding: 1px 3px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        .dark .highlight-text {
+            background-color: #fbc02d;
+            color: #000;
+        }
+        .current-highlight {
+            background-color: #ff9800 !important;
+            color: #fff !important;
+            box-shadow: 0 0 6px #ff9800;
+        }
+
+        /* Print styling */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .chat-container {
+                height: auto !important;
+                overflow: visible !important;
+            }
+            body {
+                background: white !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-wa-textDark dark:text-wa-textLight h-screen flex flex-col overflow-hidden transition-colors duration-200">
+
+    <!-- Upload Screen (Default view before chat is loaded) -->
+    <div id="uploadScreen" class="flex-1 flex flex-col items-center justify-center p-4 relative overflow-y-auto">
+        <!-- Theme Toggle Button -->
+        <button id="themeToggleBtnTop" title="تبديل المظهر" class="absolute top-6 left-6 p-3 rounded-full bg-white dark:bg-gray-800 shadow-md hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 transition">
+            <svg id="themeIconTop" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+            </svg>
+        </button>
+
+        <div class="max-w-xl w-full bg-white dark:bg-wa-bubbleDark rounded-2xl shadow-xl p-8 border border-gray-200 dark:border-gray-700 text-center space-y-6">
+            <!-- WhatsApp Logo Icon -->
+            <div class="w-20 h-20 bg-wa-green text-white rounded-full flex items-center justify-center mx-auto shadow-lg shadow-green-500/30">
+                <svg class="w-12 h-12" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.698c.969.586 1.861.884 2.795.884l.004-.001c3.182 0 5.77-2.587 5.77-5.766 0-3.181-2.587-5.77-5.773-5.77zm4.33 8.354c-.183.513-.918.948-1.42 1.012-.468.06-1.077.086-3.14-.766-2.483-1.026-4.088-3.559-4.212-3.722-.124-.164-1.009-1.341-1.009-2.557 0-1.216.637-1.815.864-2.062.227-.247.496-.309.661-.309.165 0 .33.002.474.009.153.007.359-.059.561.426.208.5.711 1.73.773 1.856.062.124.103.27.021.434-.083.165-.124.269-.247.413-.124.144-.261.322-.372.433-.124.124-.253.258-.109.505.144.248.641 1.057 1.378 1.713.948.845 1.748 1.107 1.996 1.231.248.124.392.103.536-.062.144-.165.619-.722.784-.97.165-.248.33-.207.557-.124.227.083 1.442.68 1.69 1.803z"/>
+                </svg>
+            </div>
+
+            <div>
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100 mb-2">عارض محادثات واتساب الذكي</h1>
+                <p class="text-sm text-gray-500 dark:text-gray-400">
+                    ارفع ملف المحادثة المصدّر (<span class="font-mono text-wa-teal dark:text-wa-green font-semibold">.txt</span>) واستعرض الشات بشكل مطابق تماماً لواتساب الأصلي مع إمكانية البحث والفلترة وتحديد طرف المحادثة.
+                </p>
+            </div>
+
+            <!-- Drag & Drop Zone -->
+            <div id="dropZone" class="border-2 border-dashed border-gray-300 dark:border-gray-600 hover:border-wa-green dark:hover:border-wa-green rounded-xl p-8 cursor-pointer transition bg-gray-50 dark:bg-gray-800/50 hover:bg-green-50/50 dark:hover:bg-green-950/20 group">
+                <input type="file" id="fileInput" accept=".txt" class="hidden">
+                <div class="flex flex-col items-center pointer-events-none">
+                    <svg class="w-12 h-12 text-gray-400 group-hover:text-wa-green transition mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                    </svg>
+                    <span class="text-base font-semibold text-gray-700 dark:text-gray-200">اسحب وأفلت ملف المحادثة هنا</span>
+                    <span class="text-xs text-gray-400 mt-1">أو انقر لاختيار الملف من جهازك</span>
+                </div>
+            </div>
+
+            <!-- Action buttons -->
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                <button id="browseBtn" class="w-full sm:w-auto px-6 py-2.5 bg-wa-teal hover:bg-wa-darkTeal text-white font-medium rounded-lg shadow transition flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                    </svg>
+                    <span>اختر ملف الشات (.txt)</span>
+                </button>
+                <button id="loadSampleBtn" class="w-full sm:w-auto px-5 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 font-medium rounded-lg transition flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5 text-wa-green" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <span>تجربة محادثة نموذجية</span>
+                </button>
+            </div>
+
+            <!-- Privacy Badge -->
+            <div class="pt-4 border-t border-gray-100 dark:border-gray-700/60 flex items-center justify-center gap-2 text-xs text-gray-500 dark:text-gray-400">
+                <svg class="w-4 h-4 text-emerald-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>خصوصية وأمان 100%: المعالجة بالكامل محلياً داخل متصفحك دون رفع أي بيانات لأي خادم.</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Chat Interface (Hidden until file is loaded) -->
+    <div id="chatScreen" class="hidden flex-1 flex flex-col h-screen overflow-hidden">
+        
+        <!-- WhatsApp Header -->
+        <header class="bg-wa-headerLight dark:bg-wa-headerDark border-b border-gray-300 dark:border-gray-700 px-4 py-2.5 flex items-center justify-between z-10 shadow-sm no-print">
+            <div class="flex items-center gap-3">
+                <!-- Back / Change File Button -->
+                <button id="backBtn" title="تغيير الملف" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 transition">
+                    <svg class="w-5 h-5 transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                    </svg>
+                </button>
+
+                <!-- Avatar -->
+                <div id="chatAvatar" class="w-10 h-10 rounded-full bg-wa-teal text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                    💬
+                </div>
+
+                <!-- Chat Info -->
+                <div class="leading-tight">
+                    <h2 id="chatTitle" class="font-semibold text-gray-900 dark:text-gray-100 text-base truncate max-w-[200px] sm:max-w-md">محادثة واتساب</h2>
+                    <p id="chatSubtitle" class="text-xs text-wa-mutedDark dark:text-wa-mutedLight">0 رسالة</p>
+                </div>
+            </div>
+
+            <!-- Top Actions -->
+            <div class="flex items-center gap-1 sm:gap-2">
+                <!-- Search Button -->
+                <button id="toggleSearchBtn" title="بحث في المحادثة (Ctrl+F)" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </button>
+
+                <!-- "Me" Participant Selector -->
+                <div class="relative hidden sm:flex items-center gap-1 bg-white dark:bg-gray-800 px-2.5 py-1 rounded-full border border-gray-300 dark:border-gray-600 text-xs">
+                    <span class="text-gray-500 dark:text-gray-400 font-medium whitespace-nowrap">أنا (المرسل):</span>
+                    <select id="userSelector" class="bg-transparent text-gray-800 dark:text-gray-100 font-semibold focus:outline-none cursor-pointer max-w-[130px] truncate">
+                        <!-- Options populated via JS -->
+                    </select>
+                </div>
+
+                <!-- Stats Button -->
+                <button id="statsBtn" title="إحصائيات المحادثة" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </button>
+
+                <!-- Print / Save to PDF Button -->
+                <button id="printBtn" title="طباعة / حفظ كـ PDF" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                    </svg>
+                </button>
+
+                <!-- Theme Toggle Button -->
+                <button id="themeToggleBtnChat" title="تبديل الوضع الليلي / النهاري" class="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full text-gray-600 dark:text-gray-300 transition">
+                    <svg id="themeIconChat" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <!-- Search Bar (Collapsible) -->
+        <div id="searchBar" class="hidden bg-gray-50 dark:bg-gray-800 border-b border-gray-300 dark:border-gray-700 px-4 py-2 transition-all no-print">
+            <div class="flex items-center gap-2 max-w-2xl mx-auto">
+                <div class="relative flex-1">
+                    <input type="text" id="searchInput" placeholder="ابحث في نصوص الرسائل..." class="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg pr-9 pl-4 py-1.5 text-sm focus:outline-none focus:border-wa-green">
+                    <svg class="w-4 h-4 text-gray-400 absolute right-3 top-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                    </svg>
+                </div>
+                <!-- Search navigation buttons -->
+                <div class="flex items-center gap-1 text-xs">
+                    <span id="searchCount" class="text-gray-500 dark:text-gray-400 px-2 whitespace-nowrap">0 / 0</span>
+                    <button id="prevMatchBtn" title="النتيجة السابقة" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300 disabled:opacity-30">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>
+                    </button>
+                    <button id="nextMatchBtn" title="النتيجة التالية" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300 disabled:opacity-30">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <button id="closeSearchBtn" title="إغلاق البحث" class="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded text-gray-600 dark:text-gray-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+            </div>
+            <!-- Filter by sender and date range -->
+            <div class="flex flex-wrap items-center justify-center gap-3 mt-2 text-xs text-gray-600 dark:text-gray-300">
+                <div class="flex items-center gap-1">
+                    <span>تصفية بالمرسل:</span>
+                    <select id="filterSenderSelect" class="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-1">
+                        <option value="all">الكل</option>
+                    </select>
+                </div>
+                <div class="flex items-center gap-1">
+                    <span>من تاريخ:</span>
+                    <input type="date" id="filterDateFrom" class="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-0.5">
+                </div>
+                <div class="flex items-center gap-1">
+                    <span>إلى تاريخ:</span>
+                    <input type="date" id="filterDateTo" class="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-2 py-0.5">
+                </div>
+                <button id="resetFiltersBtn" class="text-wa-teal dark:text-wa-green hover:underline">إعادة ضبط</button>
+            </div>
+        </div>
+
+        <!-- Mobile "Me" selector bar (shows only on small screens) -->
+        <div class="sm:hidden bg-gray-100 dark:bg-gray-800 px-4 py-1.5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between text-xs">
+            <span class="text-gray-500 dark:text-gray-400">أنا (المرسل):</span>
+            <select id="userSelectorMobile" class="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded px-2 py-1 border border-gray-300 dark:border-gray-600">
+            </select>
+        </div>
+
+        <!-- Chat Messages Container (Explicit dir="ltr" ensures standard WhatsApp layout: Me on Right, Others on Left) -->
+        <div id="chatMessages" dir="ltr" class="chat-container flex-1 overflow-y-auto px-4 sm:px-8 py-4 space-y-2 chat-wallpaper-light dark:chat-wallpaper-dark scroll-smooth relative">
+            <!-- Messages rendered dynamically here -->
+        </div>
+
+        <!-- Floating Quick Navigation Buttons -->
+        <div class="absolute bottom-16 right-6 flex flex-col gap-2 z-20 no-print">
+            <button id="scrollToTopBtn" title="الصعود للأعلى" class="bg-white dark:bg-gray-800 p-2.5 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"/></svg>
+            </button>
+            <button id="scrollToBottomBtn" title="النزول للأسفل" class="bg-white dark:bg-gray-800 p-2.5 rounded-full shadow-lg border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg>
+            </button>
+        </div>
+
+        <!-- Mock WhatsApp Input Footer (for authentic look & navigation) -->
+        <footer class="bg-wa-headerLight dark:bg-wa-headerDark border-t border-gray-300 dark:border-gray-700 px-4 py-2 flex items-center justify-between text-xs text-wa-mutedDark dark:text-wa-mutedLight no-print">
+            <div class="flex items-center gap-2">
+                <span class="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <span>جاهز للاستعراض والتصفح السلس</span>
+            </div>
+            <div id="footerMessageCount" class="font-medium">
+                0 رسالة معروضة
+            </div>
+        </footer>
+    </div>
+
+    <!-- Stats Modal -->
+    <div id="statsModal" class="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 hidden backdrop-blur-sm">
+        <div class="bg-white dark:bg-wa-bubbleDark rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-200 dark:border-gray-700 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-700 pb-3">
+                <h3 class="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-wa-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    إحصائيات المحادثة
+                </h3>
+                <button id="closeStatsBtn" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-3 text-center">
+                <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">إجمالي الرسائل</p>
+                    <p id="statTotalMsgs" class="text-xl font-bold text-wa-teal dark:text-wa-green">0</p>
+                </div>
+                <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">عدد الأطراف المشاركة</p>
+                    <p id="statTotalParticipants" class="text-xl font-bold text-indigo-500">0</p>
+                </div>
+                <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">الفترة الزمنية</p>
+                    <p id="statDateRange" class="text-xs font-semibold text-gray-700 dark:text-gray-200 mt-1">-</p>
+                </div>
+                <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">وسائط وروابط مقتطعة</p>
+                    <p id="statMediaCount" class="text-xl font-bold text-amber-500">0</p>
+                </div>
+            </div>
+
+            <!-- Participant Breakdown -->
+            <div>
+                <h4 class="text-sm font-semibold mb-2 text-gray-700 dark:text-gray-300">مشاركة كل طرف:</h4>
+                <div id="statParticipantsList" class="space-y-3">
+                    <!-- Progress bars injected here -->
+                </div>
+            </div>
+
+            <div class="text-center pt-2">
+                <button id="okStatsBtn" class="px-6 py-2 bg-wa-teal hover:bg-wa-darkTeal text-white font-medium rounded-lg text-sm transition">
+                    إغلاق
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script -->
+    <script>
+        // State management
+        const state = {
+            rawText: '',
+            messages: [],
+            filteredMessages: [],
+            participants: [],
+            meParticipant: '',
+            darkMode: false,
+            searchQuery: '',
+            searchMatches: [],
+            currentSearchIndex: -1,
+            filterSender: 'all',
+            filterDateFrom: '',
+            filterDateTo: '',
+            participantColors: {}
+        };
+
+        const AVATAR_COLORS = [
+            '#1f7a8c', '#e76f51', '#2a9d8f', '#e63946', '#8338ec', 
+            '#3a86ff', '#fb5607', '#ff006e', '#0077b6', '#028090'
+        ];
+
+        // Sample WhatsApp Chat Data
+        const SAMPLE_CHAT = `15/01/2024, 10:15 ص - الرسائل والمكالمات مشفرة تماماً بين الطرفين. لا يمكن لأحد خارج هذه المحادثة، بما في ذلك واتساب، قراءتها أو الاستماع إليها.
+15/01/2024, 10:16 ص - أحمد علي: السلام عليكم ورحمة الله، صباح الخير يا هندسة
+15/01/2024, 10:17 ص - محمد إبراهيم: وعليكم السلام ورحمة الله وبركاته، صباح النور والسرور يا غالي
+15/01/2024, 10:18 ص - أحمد علي: طمني، هل خلصت مراجعة التصميمات الخاصة بالمشروع الجديد؟
+15/01/2024, 10:20 ص - محمد إبراهيم: أه تمام، خلصتها والنتيجة ممتازة جداً ما شاء الله! 🚀
+15/01/2024, 10:20 ص - محمد إبراهيم: بعتلك التقرير الكامل على الإيميل عشان تشوف الملاحظات البسيطة.
+15/01/2024, 10:22 ص - أحمد علي: ممتاز جداً! هشوفه حالا وأرد عليك.
+15/01/2024, 10:25 ص - أحمد علي: شوف ده رابط المعاينة السريعة كمان:
+https://example.com/project-preview
+15/01/2024, 10:30 ص - محمد إبراهيم: <ملف وسائط غير مضمن>
+15/01/2024, 10:31 ص - محمد إبراهيم: الصورة دي بتوضح التعديل المقترح في واجهة المستخدم، رأيك إيه؟
+15/01/2024, 10:35 ص - أحمد علي: شكلها كدة أفضل بكتير وأسهل في التصفح 👏
+15/01/2024, 10:40 ص - أحمد علي: توكل على الله واعتمد التعديلات دي، ونلتقي إن شاء الله في اجتماع المساء.
+15/01/2024, 10:42 ص - محمد إبراهيم: على بركة الله يا باشا، أشوفك على خير بإذن الله ❤️
+16/01/2024, 02:15 م - أحمد علي: مساء الخير، ملخص سريع لاجتماع اليوم:
+1- اعتماد التصميم النهائي
+2- تسليم المرحلة الأولى يوم الأحد القادم
+3- جدولة مراجعة الأداء
+16/01/2024, 02:20 م - محمد إبراهيم: تمام تم تسجيل كل النقاط، وبالتوفيق لنا جميعاً يا رب.`;
+
+        // DOM Elements
+        const uploadScreen = document.getElementById('uploadScreen');
+        const chatScreen = document.getElementById('chatScreen');
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const browseBtn = document.getElementById('browseBtn');
+        const loadSampleBtn = document.getElementById('loadSampleBtn');
+        const backBtn = document.getElementById('backBtn');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatTitle = document.getElementById('chatTitle');
+        const chatSubtitle = document.getElementById('chatSubtitle');
+        const userSelector = document.getElementById('userSelector');
+        const userSelectorMobile = document.getElementById('userSelectorMobile');
+        const scrollToTopBtn = document.getElementById('scrollToTopBtn');
+        const scrollToBottomBtn = document.getElementById('scrollToBottomBtn');
+        const footerMessageCount = document.getElementById('footerMessageCount');
+        const themeToggleBtnTop = document.getElementById('themeToggleBtnTop');
+        const themeToggleBtnChat = document.getElementById('themeToggleBtnChat');
+
+        // Search & Filter Elements
+        const toggleSearchBtn = document.getElementById('toggleSearchBtn');
+        const searchBar = document.getElementById('searchBar');
+        const searchInput = document.getElementById('searchInput');
+        const searchCount = document.getElementById('searchCount');
+        const prevMatchBtn = document.getElementById('prevMatchBtn');
+        const nextMatchBtn = document.getElementById('nextMatchBtn');
+        const closeSearchBtn = document.getElementById('closeSearchBtn');
+        const filterSenderSelect = document.getElementById('filterSenderSelect');
+        const filterDateFrom = document.getElementById('filterDateFrom');
+        const filterDateTo = document.getElementById('filterDateTo');
+        const resetFiltersBtn = document.getElementById('resetFiltersBtn');
+
+        // Stats Elements
+        const statsBtn = document.getElementById('statsBtn');
+        const statsModal = document.getElementById('statsModal');
+        const closeStatsBtn = document.getElementById('closeStatsBtn');
+        const okStatsBtn = document.getElementById('okStatsBtn');
+        const statTotalMsgs = document.getElementById('statTotalMsgs');
+        const statTotalParticipants = document.getElementById('statTotalParticipants');
+        const statDateRange = document.getElementById('statDateRange');
+        const statMediaCount = document.getElementById('statMediaCount');
+        const statParticipantsList = document.getElementById('statParticipantsList');
+        const printBtn = document.getElementById('printBtn');
+
+        // Theme management
+        function initTheme() {
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const savedTheme = localStorage.getItem('wa_theme');
+            if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+                enableDarkMode(true);
+            } else {
+                enableDarkMode(false);
+            }
+        }
+
+        function enableDarkMode(enabled) {
+            state.darkMode = enabled;
+            if (enabled) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('wa_theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('wa_theme', 'light');
+            }
+        }
+
+        function toggleDarkMode() {
+            enableDarkMode(!state.darkMode);
+        }
+
+        themeToggleBtnTop.addEventListener('click', toggleDarkMode);
+        themeToggleBtnChat.addEventListener('click', toggleDarkMode);
+
+        // File Drag & Drop Setup
+        dropZone.addEventListener('click', () => fileInput.click());
+        browseBtn.addEventListener('click', () => fileInput.click());
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.add('border-wa-green', 'bg-green-50');
+            });
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropZone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                dropZone.classList.remove('border-wa-green', 'bg-green-50');
+            });
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        loadSampleBtn.addEventListener('click', () => {
+            processChatText(SAMPLE_CHAT, 'محادثة نموذجية (تجربة)');
+        });
+
+        backBtn.addEventListener('click', () => {
+            chatScreen.classList.add('hidden');
+            uploadScreen.classList.remove('hidden');
+            fileInput.value = '';
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.txt')) {
+                alert('يرجى اختيار ملف بامتداد .txt المصدّر من واتساب');
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                const chatName = file.name.replace('.txt', '').replace(/^WhatsApp Chat with /i, '').replace(/^محادثة واتساب مع /i, '');
+                processChatText(text, chatName);
+            };
+            reader.onerror = () => {
+                alert('حدث خطأ أثناء قراءة الملف!');
+            };
+            reader.readAsText(file);
+        }
+
+        /*
+         * Robust WhatsApp Text Parser
+         * Handles Android, iOS formats, 12h/24h, Arabic & English AM/PM, unicode marks, system notifications, and multi-line text.
+         */
+        function parseWhatsAppChat(text) {
+            // Normalize unicode marks and various dash styles to standard hyphen
+            const cleanText = text
+                .replace(/[\u200E\u200F\u202A\u202C\u00A0\u202F]/g, ' ')
+                .replace(/[\u2010-\u2015]/g, '-');
+
+            const lines = cleanText.split(/\r?\n/);
+            const messages = [];
+
+            // Pattern 1: Android (e.g. 15/01/2024, 10:15 - Sender: Message or 15/01/2024, 10:15 ص - Sender: Message)
+            const regexAndroid = /^(\d{1,4}[/\-.]\d{1,2}[/\-.]\d{1,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:[apAP]\.?[mM]\.?|[صم]|صباحاً|مساءً))?)\s*-\s*(.*)$/;
+            
+            // Pattern 2: iOS (e.g. [15/01/2024, 10:15:30] Sender: Message or [15/01/2024, 10:15:30 ص] Sender: Message)
+            const regexIOS = /^\[(\d{1,4}[/\-.]\d{1,2}[/\-.]\d{1,4}),?\s+(\d{1,2}:\d{2}(?::\d{2})?(?:\s*(?:[apAP]\.?[mM]\.?|[صم]|صباحاً|مساءً))?)\]\s*(.*)$/;
+
+            let currentMessage = null;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line.trim()) continue;
+
+                let match = line.match(regexAndroid);
+                if (!match) {
+                    match = line.match(regexIOS);
+                }
+
+                if (match) {
+                    if (currentMessage) {
+                        messages.push(currentMessage);
+                    }
+
+                    const rawDate = match[1].trim();
+                    const rawTime = match[2].trim();
+                    const rest = match[3].trim();
+
+                    // Check if line contains "Sender: Message" or is a system message
+                    const colonIndex = rest.search(/:\s+/);
+
+                    if (colonIndex > 0) {
+                        const sender = rest.substring(0, colonIndex).trim();
+                        const content = rest.substring(colonIndex + 2).trim();
+
+                        currentMessage = {
+                            id: messages.length + 1,
+                            date: rawDate,
+                            time: rawTime,
+                            sender: sender,
+                            content: content,
+                            isSystem: false
+                        };
+                    } else {
+                        // System Message
+                        currentMessage = {
+                            id: messages.length + 1,
+                            date: rawDate,
+                            time: rawTime,
+                            sender: '',
+                            content: rest,
+                            isSystem: true
+                        };
+                    }
+                } else {
+                    // Multi-line continuation of previous message
+                    if (currentMessage) {
+                        currentMessage.content += '\n' + line;
+                    }
+                }
+            }
+
+            if (currentMessage) {
+                messages.push(currentMessage);
+            }
+
+            return messages;
+        }
+
+        function processChatText(text, titleName) {
+            state.rawText = text;
+            const parsed = parseWhatsAppChat(text);
+
+            if (parsed.length === 0) {
+                alert('لم نتمكن من قراءة أي رسائل من هذا الملف. تأكد من أنه ملف نصي (.txt) مصدّر مباشرة من تطبيق واتساب.');
+                return;
+            }
+
+            state.messages = parsed;
+            
+            // Extract unique participants
+            const participantCounts = {};
+            parsed.forEach(m => {
+                if (!m.isSystem && m.sender) {
+                    participantCounts[m.sender] = (participantCounts[m.sender] || 0) + 1;
+                }
+            });
+
+            // Sort participants by frequency
+            state.participants = Object.keys(participantCounts).sort((a, b) => participantCounts[b] - participantCounts[a]);
+
+            // Assign distinct colors to participants for group view
+            state.participantColors = {};
+            state.participants.forEach((name, idx) => {
+                state.participantColors[name] = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+            });
+
+            // Default 'Me' (sent) to second participant if 2 people, or first if 1
+            state.meParticipant = state.participants.length > 1 ? state.participants[1] : (state.participants[0] || '');
+
+            // Populate User Selectors
+            populateUserSelectors();
+
+            // Populate Filter dropdown
+            populateFilterSenders();
+
+            // Setup Header Info
+            chatTitle.textContent = titleName || (state.participants.length === 2 ? state.participants[0] : 'محادثة واتساب');
+            chatSubtitle.textContent = `${parsed.length.toLocaleString('ar-EG')} رسالة (${state.participants.length} أطراف)`;
+            
+            // Avatar
+            const firstLetter = chatTitle.textContent.trim().charAt(0) || '💬';
+            document.getElementById('chatAvatar').textContent = firstLetter;
+
+            // Apply Filters & Render
+            applyFiltersAndRender();
+
+            // Switch view
+            uploadScreen.classList.add('hidden');
+            chatScreen.classList.remove('hidden');
+
+            // Scroll to bottom after render
+            setTimeout(() => {
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }, 100);
+        }
+
+        function populateUserSelectors() {
+            const createOptions = (selectedVal) => {
+                return state.participants.map(p => 
+                    `<option value="${escapeHtml(p)}" ${p === selectedVal ? 'selected' : ''}>${escapeHtml(p)}</option>`
+                ).join('');
+            };
+
+            userSelector.innerHTML = createOptions(state.meParticipant);
+            userSelectorMobile.innerHTML = createOptions(state.meParticipant);
+
+            const handleUserChange = (e) => {
+                state.meParticipant = e.target.value;
+                userSelector.value = state.meParticipant;
+                userSelectorMobile.value = state.meParticipant;
+                renderMessages();
+            };
+
+            userSelector.onchange = handleUserChange;
+            userSelectorMobile.onchange = handleUserChange;
+        }
+
+        function populateFilterSenders() {
+            filterSenderSelect.innerHTML = '<option value="all">كل الأطراف</option>' + 
+                state.participants.map(p => `<option value="${escapeHtml(p)}">${escapeHtml(p)}</option>`).join('');
+        }
+
+        function applyFiltersAndRender() {
+            let filtered = state.messages;
+
+            // Sender filter
+            if (state.filterSender !== 'all') {
+                filtered = filtered.filter(m => m.isSystem || m.sender === state.filterSender);
+            }
+
+            // Date filters
+            if (state.filterDateFrom) {
+                filtered = filtered.filter(m => {
+                    const d = parseDateToISO(m.date);
+                    return !d || d >= state.filterDateFrom;
+                });
+            }
+            if (state.filterDateTo) {
+                filtered = filtered.filter(m => {
+                    const d = parseDateToISO(m.date);
+                    return !d || d <= state.filterDateTo;
+                });
+            }
+
+            state.filteredMessages = filtered;
+            footerMessageCount.textContent = `${filtered.length.toLocaleString('ar-EG')} رسالة معروضة`;
+
+            renderMessages();
+        }
+
+        function parseDateToISO(dateStr) {
+            if (!dateStr) return null;
+            const parts = dateStr.split(/[/\-.]/);
+            if (parts.length === 3) {
+                let day, month, year;
+                if (parts[0].length === 4) {
+                    year = parts[0];
+                    month = parts[1].padStart(2, '0');
+                    day = parts[2].padStart(2, '0');
+                } else {
+                    day = parts[0].padStart(2, '0');
+                    month = parts[1].padStart(2, '0');
+                    year = parts[2].length === 2 ? '20' + parts[2] : parts[2];
+                }
+                return `${year}-${month}-${day}`;
+            }
+            return null;
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function formatMessageContent(content, searchQuery = '') {
+            let escaped = escapeHtml(content);
+
+            // Detect and convert URLs to clickable links
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            escaped = escaped.replace(urlRegex, (url) => {
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-500 hover:underline break-all">${url}</a>`;
+            });
+
+            // Convert newlines to <br>
+            escaped = escaped.replace(/\n/g, '<br>');
+
+            // Detect and highlight omitted media cards
+            const isMedia = content.includes('omitted') || content.includes('غير مضمن') || content.includes('مفقود') || content.includes('غير متوفر');
+            if (isMedia) {
+                let mediaIcon = `
+                    <svg class="w-5 h-5 text-gray-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                    </svg>
+                `;
+                if (/audio|صوت|صوتي|voice/i.test(content)) {
+                    mediaIcon = `
+                        <svg class="w-5 h-5 text-emerald-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                        </svg>
+                    `;
+                } else if (/video|فيديو/i.test(content)) {
+                    mediaIcon = `
+                        <svg class="w-5 h-5 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                    `;
+                } else if (/document|مستند|ملف/i.test(content)) {
+                    mediaIcon = `
+                        <svg class="w-5 h-5 text-indigo-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                    `;
+                }
+
+                escaped = `
+                    <div class="flex items-center gap-2.5 p-2 bg-black/5 dark:bg-white/5 rounded-md italic text-xs text-gray-600 dark:text-gray-300">
+                        ${mediaIcon}
+                        <span>${escaped}</span>
+                    </div>
+                `;
+            }
+
+            // Search query highlight
+            if (searchQuery && searchQuery.trim() !== '') {
+                const queryRegex = new RegExp(`(${escapeRegex(escapeHtml(searchQuery))})`, 'gi');
+                escaped = escaped.replace(queryRegex, '<mark class="highlight-text">$1</mark>');
+            }
+
+            return escaped;
+        }
+
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        function renderMessages() {
+            chatMessages.innerHTML = '';
+            const msgs = state.filteredMessages;
+
+            if (msgs.length === 0) {
+                chatMessages.innerHTML = `
+                    <div class="flex flex-col items-center justify-center h-64 text-gray-400">
+                        <svg class="w-12 h-12 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+                        <p class="text-sm font-medium">لا توجد رسائل مطابقة للبحث أو التصفية</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let lastDate = '';
+            let lastSender = '';
+            const fragment = document.createDocumentFragment();
+
+            for (let i = 0; i < msgs.length; i++) {
+                const msg = msgs[i];
+
+                // Date separator badge (Sticky centered badge)
+                if (msg.date !== lastDate) {
+                    lastDate = msg.date;
+                    const dateBadge = document.createElement('div');
+                    dateBadge.className = 'flex justify-center my-3 sticky top-2 z-10';
+                    dateBadge.innerHTML = `
+                        <span class="px-3.5 py-1 bg-white/95 dark:bg-wa-bubbleDark/95 backdrop-blur-sm shadow-sm border border-gray-200/80 dark:border-gray-700/80 rounded-lg text-xs font-semibold text-gray-600 dark:text-gray-300">
+                            ${msg.date}
+                        </span>
+                    `;
+                    fragment.appendChild(dateBadge);
+                    lastSender = '';
+                }
+
+                // System message (Encryption, participant updates, etc.)
+                if (msg.isSystem) {
+                    const sysDiv = document.createElement('div');
+                    sysDiv.className = 'flex justify-center my-2 text-center px-4';
+                    sysDiv.innerHTML = `
+                        <div class="bg-wa-systemLight dark:bg-wa-systemDark border border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-200 text-xs px-4 py-1.5 rounded-lg max-w-md shadow-xs leading-relaxed font-sans text-center">
+                            🔒 ${formatMessageContent(msg.content, state.searchQuery)}
+                        </div>
+                    `;
+                    fragment.appendChild(sysDiv);
+                    lastSender = '';
+                    continue;
+                }
+
+                // Normal message
+                const isMe = (msg.sender === state.meParticipant);
+                const isFirstInBurst = (msg.sender !== lastSender);
+                lastSender = msg.sender;
+
+                // Message row wrapper:
+                // chatMessages has dir="ltr", so justify-end is firmly RIGHT (Me) and justify-start is LEFT (Other)
+                const msgRow = document.createElement('div');
+                msgRow.className = `flex w-full mb-1 ${isMe ? 'justify-end' : 'justify-start'}`;
+                msgRow.dataset.messageId = msg.id;
+
+                const senderColor = state.participantColors[msg.sender] || '#128C7E';
+                const tailClass = isFirstInBurst ? (isMe ? 'rounded-tr-none bubble-tail-right mr-2' : 'rounded-tl-none bubble-tail-left ml-2') : '';
+
+                // Message bubble layout
+                const bubble = document.createElement('div');
+                bubble.className = `relative max-w-[85%] sm:max-w-[70%] px-3.5 py-2 rounded-xl shadow-sm text-sm break-words ${tailClass} ${
+                    isMe 
+                        ? 'bg-wa-lightGreen dark:bg-wa-darkGreen text-gray-900 dark:text-gray-100' 
+                        : 'bg-wa-bubbleLight dark:bg-wa-bubbleDark text-gray-900 dark:text-gray-100'
+                }`;
+
+                let senderHeaderHtml = '';
+                // Show sender name in groups or when receiving
+                if (!isMe && isFirstInBurst) {
+                    senderHeaderHtml = `
+                        <div class="font-bold text-xs mb-1 select-none" style="color: ${senderColor}">
+                            ${escapeHtml(msg.sender)}
+                        </div>
+                    `;
+                }
+
+                const contentHtml = formatMessageContent(msg.content, state.searchQuery);
+
+                // Double checkmarks for "Me" messages
+                const checkmarks = isMe 
+                    ? `<svg class="w-4 h-4 inline text-sky-500 ml-1" viewBox="0 0 16 15" fill="none"><path d="M15.01 3.316l-7.79 7.79-4.22-4.22 1.06-1.06 3.16 3.16 6.73-6.73 1.06 1.06zm-4.24 0l-1.06-1.06-5.67 5.67-1.06-1.06-1.06 1.06 2.12 2.12 6.73-6.73z" fill="currentColor"/></svg>` 
+                    : '';
+
+                bubble.innerHTML = `
+                    ${senderHeaderHtml}
+                    <div dir="auto" class="leading-relaxed select-text font-sans">${contentHtml}</div>
+                    <div class="flex items-center justify-end gap-1 mt-1 text-[11px] text-gray-500 dark:text-gray-400 select-none">
+                        <span>${msg.time}</span>
+                        ${checkmarks}
+                    </div>
+                `;
+
+                msgRow.appendChild(bubble);
+                fragment.appendChild(msgRow);
+            }
+
+            chatMessages.appendChild(fragment);
+
+            // Update search highlight indices
+            updateSearchHighlights();
+        }
+
+        // Quick scroll floating buttons
+        scrollToBottomBtn.addEventListener('click', () => {
+            chatMessages.scrollTo({
+                top: chatMessages.scrollHeight,
+                behavior: 'smooth'
+            });
+        });
+
+        scrollToTopBtn.addEventListener('click', () => {
+            chatMessages.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+
+        // Search features
+        toggleSearchBtn.addEventListener('click', () => {
+            searchBar.classList.toggle('hidden');
+            if (!searchBar.classList.contains('hidden')) {
+                searchInput.focus();
+                searchInput.select();
+            } else {
+                clearSearch();
+            }
+        });
+
+        closeSearchBtn.addEventListener('click', () => {
+            searchBar.classList.add('hidden');
+            clearSearch();
+        });
+
+        searchInput.addEventListener('input', (e) => {
+            state.searchQuery = e.target.value.trim();
+            renderMessages();
+        });
+
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                if (e.shiftKey) {
+                    prevMatchBtn.click();
+                } else {
+                    nextMatchBtn.click();
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f' && !chatScreen.classList.contains('hidden')) {
+                e.preventDefault();
+                searchBar.classList.remove('hidden');
+                searchInput.focus();
+                searchInput.select();
+            }
+            if (e.key === 'Escape' && !searchBar.classList.contains('hidden')) {
+                searchBar.classList.add('hidden');
+                clearSearch();
+            }
+        });
+
+        function clearSearch() {
+            state.searchQuery = '';
+            searchInput.value = '';
+            state.searchMatches = [];
+            state.currentSearchIndex = -1;
+            searchCount.textContent = '0 / 0';
+            renderMessages();
+        }
+
+        function updateSearchHighlights() {
+            state.searchMatches = Array.from(chatMessages.querySelectorAll('.highlight-text'));
+            if (state.searchMatches.length > 0) {
+                state.currentSearchIndex = 0;
+                highlightCurrentMatch();
+            } else {
+                state.currentSearchIndex = -1;
+                searchCount.textContent = state.searchQuery ? '0 / 0' : '';
+            }
+        }
+
+        function highlightCurrentMatch() {
+            state.searchMatches.forEach((el, idx) => {
+                if (idx === state.currentSearchIndex) {
+                    el.classList.add('current-highlight');
+                    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    el.classList.remove('current-highlight');
+                }
+            });
+            searchCount.textContent = `${state.currentSearchIndex + 1} / ${state.searchMatches.length}`;
+        }
+
+        nextMatchBtn.addEventListener('click', () => {
+            if (state.searchMatches.length === 0) return;
+            state.currentSearchIndex = (state.currentSearchIndex + 1) % state.searchMatches.length;
+            highlightCurrentMatch();
+        });
+
+        prevMatchBtn.addEventListener('click', () => {
+            if (state.searchMatches.length === 0) return;
+            state.currentSearchIndex = (state.currentSearchIndex - 1 + state.searchMatches.length) % state.searchMatches.length;
+            highlightCurrentMatch();
+        });
+
+        // Filter events
+        filterSenderSelect.addEventListener('change', (e) => {
+            state.filterSender = e.target.value;
+            applyFiltersAndRender();
+        });
+
+        filterDateFrom.addEventListener('change', (e) => {
+            state.filterDateFrom = e.target.value;
+            applyFiltersAndRender();
+        });
+
+        filterDateTo.addEventListener('change', (e) => {
+            state.filterDateTo = e.target.value;
+            applyFiltersAndRender();
+        });
+
+        resetFiltersBtn.addEventListener('click', () => {
+            state.filterSender = 'all';
+            state.filterDateFrom = '';
+            state.filterDateTo = '';
+            filterSenderSelect.value = 'all';
+            filterDateFrom.value = '';
+            filterDateTo.value = '';
+            applyFiltersAndRender();
+        });
+
+        // Statistics Modal
+        statsBtn.addEventListener('click', openStatsModal);
+        closeStatsBtn.addEventListener('click', () => statsModal.classList.add('hidden'));
+        okStatsBtn.addEventListener('click', () => statsModal.classList.add('hidden'));
+        statsModal.addEventListener('click', (e) => {
+            if (e.target === statsModal) statsModal.classList.add('hidden');
+        });
+
+        function openStatsModal() {
+            const total = state.messages.filter(m => !m.isSystem).length;
+            statTotalMsgs.textContent = total.toLocaleString('ar-EG');
+            statTotalParticipants.textContent = state.participants.length.toLocaleString('ar-EG');
+
+            // Date Range
+            const first = state.messages[0];
+            const last = state.messages[state.messages.length - 1];
+            if (first && last) {
+                statDateRange.textContent = `من ${first.date} إلى ${last.date}`;
+            }
+
+            // Media count
+            const mediaCount = state.messages.filter(m => 
+                m.content.includes('omitted') || m.content.includes('غير مضمن') || m.content.includes('مفقود')
+            ).length;
+            statMediaCount.textContent = mediaCount.toLocaleString('ar-EG');
+
+            // Participants breakdown
+            const counts = {};
+            state.messages.forEach(m => {
+                if (!m.isSystem && m.sender) {
+                    counts[m.sender] = (counts[m.sender] || 0) + 1;
+                }
+            });
+
+            statParticipantsList.innerHTML = state.participants.map(p => {
+                const count = counts[p] || 0;
+                const pct = total > 0 ? ((count / total) * 100).toFixed(1) : 0;
+                const color = state.participantColors[p] || '#128C7E';
+                return `
+                    <div class="space-y-1">
+                        <div class="flex justify-between text-xs">
+                            <span class="font-medium text-gray-800 dark:text-gray-200">${escapeHtml(p)}</span>
+                            <span class="text-gray-500 dark:text-gray-400">${count.toLocaleString('ar-EG')} رسالة (${pct}%)</span>
+                        </div>
+                        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                            <div class="h-2 rounded-full" style="width: ${pct}%; background-color: ${color}"></div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            statsModal.classList.remove('hidden');
+        }
+
+        // Print
+        printBtn.addEventListener('click', () => {
+            window.print();
+        });
+
+        // Initialize theme on load
+        initTheme();
+    </script>
+</body>
+</html>
